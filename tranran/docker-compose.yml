@@ -1,0 +1,287 @@
+networks:
+  TransNetwork:
+    name: "TransNetwork"
+
+volumes:
+  images:
+    driver: local
+    driver_opts:
+      o: "bind"
+      type: "none"
+      device: "./images"
+  frontend-volume:
+    driver: local
+    driver_opts:
+      o: "bind"
+      type: "none"
+      device: "./frontend/public"
+  auth-service-code:
+    driver: local
+    driver_opts:
+      o: "bind"
+      type: "none"
+      device: "./auth_build/auth_service"
+  api-service-code:
+    driver: local
+    driver_opts:
+      o: "bind"
+      type: "none"
+      device: "./api_build/api_service"
+
+  match-code:
+    driver: local
+    driver_opts:
+      o: "bind"
+      type: "none"
+      device: "./match_making/match_service"
+
+services:
+  users-db:
+    image: postgres
+    container_name: users_db
+    networks:
+      - TransNetwork
+    volumes:
+      - /var/lib/postgresql/data
+    env_file:
+      - "auth_build/build/conf/.env"
+
+  auth-service:
+    build: "auth_build/."
+    pull_policy: build
+    image: auth_service:latest
+    container_name: auth_service
+    networks:
+      - TransNetwork
+    depends_on:
+      - users-db
+      - auth-redis
+      - api-service
+      - rabbitmq
+    env_file:
+      - "auth_build/build/conf/.env"
+    volumes:
+      - "auth-service-code:/var/app"
+      - "images:/var/images"
+
+  chat-redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - TransNetwork
+
+  chat-db:
+    image: postgres:13
+    container_name: chat_db
+    networks:
+      - TransNetwork
+    environment:
+      POSTGRES_DB: chat_database
+      POSTGRES_USER: chat_user
+      POSTGRES_PASSWORD: user123
+    volumes:
+      - /var/lib/postgresql/data
+
+  chat-service:
+    build: "chat_service/."
+    pull_policy: build
+    image: chat_image:latest
+    container_name: chat_service
+    networks:
+      - TransNetwork
+    depends_on:
+      - chat-redis
+      - chat-db
+      - rabbitmq
+    env_file:
+      - "./chat_service/.env"
+    volumes:
+      - ./chat_service:/chatco
+
+  api-service:
+    build: "api_build/."
+    pull_policy: build
+    image: api_service:latest
+    container_name: api_service
+    networks:
+      - TransNetwork
+    depends_on:
+      - rabbitmq
+      - api-db
+      - api-redis
+    volumes:
+      - "api-service-code:/var/app/"
+    env_file:
+      - "api_build/build/conf/.env"
+
+  api-db:
+    image: postgres
+    container_name: api_db
+    networks:
+      - TransNetwork
+    volumes:
+      - /var/lib/postgresql/data
+    env_file:
+      - "api_build/build/conf/.env"
+
+  api-redis:
+    build: "api_redis"
+    pull_policy: build
+    image: api_redis
+    container_name: api_redis
+    networks:
+      - TransNetwork
+  rabbitmq:
+    image: rabbitmq:4.0.5-management
+    container_name: "rabbitmq"
+    ports:
+      - 5672:5672
+      - 15672:15672
+    networks:
+      - TransNetwork
+
+  nginx:
+    image: nginx:latest
+    pull_policy: build
+    build: "nginx/."
+    container_name: "nginx_reverse"
+    hostname: "nginx"
+    ports:
+      - 8000:80
+    depends_on:
+      - auth-service
+      - adminer
+      - api-service
+      - match-service
+      - chat-service
+      - pong-game
+    networks:
+      - TransNetwork
+    volumes:
+      - "images:/var/images"
+
+  adminer:
+    image: adminer
+    container_name: adminer_inspect
+    networks:
+      - TransNetwork
+    depends_on:
+      - users-db
+    env_file:
+      - adminer/.env
+
+  auth-redis:
+    build: "auth_redis"
+    pull_policy: build
+    image: auth_redis_image
+    container_name: auth_redis
+    networks:
+      - TransNetwork
+    volumes:
+      - "/data"
+
+  redisinsight:
+    container_name: redisinsight
+    image: redis/redisinsight:latest
+    networks:
+      - TransNetwork
+    ports:
+      - 5540:5540
+    depends_on:
+      - auth-redis
+    volumes:
+      - "/data"
+
+  frontend:
+    container_name: frontend
+    build: "frontend/."
+    image: frontend:latest
+    pull_policy: build
+    networks:
+      - TransNetwork
+    init: true # handle signals for node js container, look gitub issue for node concerning pid 1
+    depends_on:
+      - auth-service
+    volumes:
+      - "frontend-volume:/app/src"
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /data
+    ports:
+      - 9000:9000
+
+  match-service:
+    container_name: match_service
+    image: match_image
+    pull_policy: build
+    build: "match_making/."
+    networks:
+      - TransNetwork
+    volumes:
+      - "match-code:/var/app"
+    depends_on:
+      - auth-service
+      - redis-queue
+
+  redis-queue:
+    build: "redis_queue/."
+    pull_policy: build
+    image: redis_queue
+    container_name: redis_queue
+    networks:
+      - TransNetwork
+
+  pong-game:
+    build: "pong_build/."
+    container_name: pong_game
+    image: pong_game:latest
+    pull_policy: build
+    networks:
+      - TransNetwork
+    volumes:
+      - "./pong_build/pong_service:/var/app"
+    depends_on:
+      - game-redis
+
+  game-redis:
+    build: "game_redis/."
+    image: game_redis:latest
+    container_name: game_redis
+    pull_policy: build
+    networks:
+      - TransNetwork
+
+  xo-game:
+    build: "xo_build/."
+    container_name: xo_game
+    image: xo_game:latest
+    pull_policy: build
+    networks:
+      - TransNetwork
+    volumes:
+      - "./xo_build/xo_service:/var/app"
+    depends_on:
+      - xo-redis
+      - xo-db
+    env_file:
+      - "xo_build/build/conf/.env"
+  
+  xo-redis:
+    image: redis:latest
+    container_name: xo_redis
+    networks:
+      - TransNetwork
+    
+  xo-db:
+    image: postgres
+    container_name: xo_db
+    networks:
+      - TransNetwork
+    volumes:
+      - /var/lib/postgresql/data
+    env_file:
+      - "xo_build/build/conf/.env"
