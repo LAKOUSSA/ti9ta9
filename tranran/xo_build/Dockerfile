@@ -17,6 +17,3 @@ RUN pip install -r /var/requirements.txt
 ENTRYPOINT ["../init.sh"]
 
 CMD ["uvicorn", "--host", "0.0.0.0", "--port", "80" ,"core.asgi:application", "--reload"]
-
-# CMD ["daphne", "-b", "0.0.0.0", "-p", "80" ,"core.asgi:application"]
-# daphne -b 0.0.0.0 -p 80 core.asgi:application

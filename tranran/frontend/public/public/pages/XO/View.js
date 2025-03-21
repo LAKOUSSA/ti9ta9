@@ -1,5 +1,5 @@
 export default /*html*/ `
-    <div>
-        <h1>TIC TAC</h1>
+    <link rel="stylesheet" href="/public/pages/XO/assets/css/main.css">
+    <div id="xo_game">
     </div>
 `

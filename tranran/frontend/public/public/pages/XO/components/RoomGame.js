@@ -28,9 +28,11 @@ export default class RoomGame extends HTMLElement {
     this.gameSocket = new WebSocket(
       'ws://' + window.location.host + '/api/game/tictac/ws/room/' + ROOM_ID
     );
+
     this.gameSocket.onerror = (error) => {
       console.log("Failed to establish connection with the server", error);
     };
+    
     this.gameSocket.onmessage = this.messageHandler.bind(this);
   }
 
@@ -70,11 +72,11 @@ export default class RoomGame extends HTMLElement {
 
         if (message.me) {
           img = document.createElement("img");
-          img.src = "assets/images/icon-x-outline.svg";
+          img.src = "/public/pages/XO/assets/images/icon-x-outline.svg";
         }
         else {
           img = document.createElement("img");
-          img.src = "assets/images/icon-o-outline.svg";
+          img.src = "/public/pages/XO/assets/images/icon-o-outline.svg";
         }
         cell.innerHTML = "";
         cell.appendChild(img);
@@ -130,6 +132,7 @@ export default class RoomGame extends HTMLElement {
 
     this.innerHTML = "";
     this.appendChild(this.frame);
+    this.frame.innerHTML = "";
     this.frame.appendChild(board);
     this.frame.appendChild(this.error_indice);
     this.frame.appendChild(this.manageTurn);
@@ -138,6 +141,5 @@ export default class RoomGame extends HTMLElement {
 
 };
 
-customElements.define("room-game", RoomGame);
 
 

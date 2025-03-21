@@ -140,6 +140,9 @@ class Consumer(AsyncWebsocketConsumer):
             )
         )
 
+        self.close()
+
+
     async def check_winner(self):
         game_data = cache.get(self.room_id)
 
